@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm run web",
-  "outputDirectory": "web-build",
-  "devCommand": "npm start",
+  "buildCommand": "npx expo export --platform web",
+  "outputDirectory": "dist",
   "installCommand": "npm install"
 }
