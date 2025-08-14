@@ -1,45 +1,45 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Modal } from 'react-native';
-import DriverList from '../../components/DriverList';
-import DriverForm from '../../components/DriverForm';
+import RouteList from '../../components/RouteList';
+import RouteForm from '../../components/RouteForm';
 import Button from '../../components/Button';
 import AppHeader from '../../components/AppHeader';
 import { Colors, Spacing } from '../../constants/theme';
 
-const DriversScreen = () => {
+const RoutesScreen = () => {
   const [showForm, setShowForm] = useState(false);
-  const [editingDriver, setEditingDriver] = useState(null);
+  const [editingRoute, setEditingRoute] = useState(null);
   
-  const handleAddDriver = () => {
-    setEditingDriver(null);
+  const handleAddRoute = () => {
+    setEditingRoute(null);
     setShowForm(true);
   };
   
-  const handleEditDriver = (driver) => {
-    setEditingDriver(driver);
+  const handleEditRoute = (route) => {
+    setEditingRoute(route);
     setShowForm(true);
   };
   
   const handleCloseForm = () => {
     setShowForm(false);
-    setEditingDriver(null);
+    setEditingRoute(null);
   };
   
   return (
     <View style={styles.container}>
-      <AppHeader title="Drivers" />
+      <AppHeader title="Routes" />
       
       <View style={styles.header}>
         <Button
-          title="+ Add Driver"
-          onPress={handleAddDriver}
+          title="+ Add Route"
+          onPress={handleAddRoute}
           style={styles.addButton}
         />
       </View>
       
-      <DriverList
-        onAddDriver={handleAddDriver}
-        onEditDriver={handleEditDriver}
+      <RouteList
+        onAddRoute={handleAddRoute}
+        onEditRoute={handleEditRoute}
       />
       
       <Modal
@@ -47,8 +47,8 @@ const DriversScreen = () => {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <DriverForm
-          driver={editingDriver}
+        <RouteForm
+          route={editingRoute}
           onClose={handleCloseForm}
         />
       </Modal>
@@ -73,4 +73,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DriversScreen;
+export default RoutesScreen;

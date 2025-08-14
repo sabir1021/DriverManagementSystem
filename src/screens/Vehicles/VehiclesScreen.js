@@ -1,45 +1,45 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Modal } from 'react-native';
-import DriverList from '../../components/DriverList';
-import DriverForm from '../../components/DriverForm';
+import VehicleList from '../../components/VehicleList';
+import VehicleForm from '../../components/VehicleForm';
 import Button from '../../components/Button';
 import AppHeader from '../../components/AppHeader';
 import { Colors, Spacing } from '../../constants/theme';
 
-const DriversScreen = () => {
+const VehiclesScreen = () => {
   const [showForm, setShowForm] = useState(false);
-  const [editingDriver, setEditingDriver] = useState(null);
+  const [editingVehicle, setEditingVehicle] = useState(null);
   
-  const handleAddDriver = () => {
-    setEditingDriver(null);
+  const handleAddVehicle = () => {
+    setEditingVehicle(null);
     setShowForm(true);
   };
   
-  const handleEditDriver = (driver) => {
-    setEditingDriver(driver);
+  const handleEditVehicle = (vehicle) => {
+    setEditingVehicle(vehicle);
     setShowForm(true);
   };
   
   const handleCloseForm = () => {
     setShowForm(false);
-    setEditingDriver(null);
+    setEditingVehicle(null);
   };
   
   return (
     <View style={styles.container}>
-      <AppHeader title="Drivers" />
+      <AppHeader title="Vehicles" />
       
       <View style={styles.header}>
         <Button
-          title="+ Add Driver"
-          onPress={handleAddDriver}
+          title="+ Add Vehicle"
+          onPress={handleAddVehicle}
           style={styles.addButton}
         />
       </View>
       
-      <DriverList
-        onAddDriver={handleAddDriver}
-        onEditDriver={handleEditDriver}
+      <VehicleList
+        onAddVehicle={handleAddVehicle}
+        onEditVehicle={handleEditVehicle}
       />
       
       <Modal
@@ -47,8 +47,8 @@ const DriversScreen = () => {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <DriverForm
-          driver={editingDriver}
+        <VehicleForm
+          vehicle={editingVehicle}
           onClose={handleCloseForm}
         />
       </Modal>
@@ -73,4 +73,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DriversScreen;
+export default VehiclesScreen;
