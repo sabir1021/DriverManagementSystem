@@ -142,12 +142,14 @@ const VehicleList = ({ onAddVehicle, onEditVehicle }) => {
   const contextFilteredVehicles = getFilteredVehicles();
   
   const filteredVehicles = contextFilteredVehicles.filter(vehicle => {
+    if (!vehicle) return false;
+    
     const query = searchQuery.toLowerCase();
     return (
-      vehicle.vehicle_number.toLowerCase().includes(query) ||
-      vehicle.make.toLowerCase().includes(query) ||
-      vehicle.model.toLowerCase().includes(query) ||
-      vehicle.type.toLowerCase().includes(query)
+      (vehicle.vehicle_number || '').toLowerCase().includes(query) ||
+      (vehicle.make || '').toLowerCase().includes(query) ||
+      (vehicle.model || '').toLowerCase().includes(query) ||
+      (vehicle.type || '').toLowerCase().includes(query)
     );
   });
   

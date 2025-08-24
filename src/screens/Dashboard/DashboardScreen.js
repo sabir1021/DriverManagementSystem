@@ -8,8 +8,24 @@ import AssignmentForm from '../../components/AssignmentForm';
 import AppHeader from '../../components/AppHeader';
 
 const DashboardScreen = ({ navigation }) => {
-  const { drivers, vehicles, routes, assignments } = useApp(); // Added routes here
+  const { 
+    drivers, 
+    vehicles, 
+    routes, 
+    assignments, 
+    categories, // Add categories to destructuring
+    getFilteredAssignments, 
+    getFilteredRoutes, 
+    getFilteredDrivers, 
+    getFilteredVehicles 
+  } = useApp();
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  
+  // Use filtered data based on selected category
+  const filteredAssignments = getFilteredAssignments();
+  const filteredRoutes = getFilteredRoutes();
+  const filteredDrivers = getFilteredDrivers();
+  const filteredVehicles = getFilteredVehicles();
   
   // Move helper functions inside the component
   const getDriverName = (driverId) => {
@@ -33,6 +49,18 @@ const DashboardScreen = ({ navigation }) => {
   const getRouteInfo = (routeId) => {
     const route = routes.find(r => r.id === routeId);
     return route ? route.route_name : 'No Route';
+  };
+
+  // Add helper function to get category name for assignment
+  const getCategoryInfo = (assignmentId) => {
+    const assignment = assignments.find(a => a.id === assignmentId);
+    if (!assignment || !assignment.route_id) return 'No Category';
+    
+    const route = routes.find(r => r.id === assignment.route_id);
+    if (!route || !route.category_id) return 'No Category';
+    
+    const category = categories.find(c => c.id === route.category_id);
+    return category ? category.name : 'No Category';
   };
 
   const getVehicleIcon = (vehicleId) => {
@@ -75,11 +103,11 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
   
-  const activeDrivers = drivers.filter(driver => driver.status === 'active').length;
-  const totalVehicles = vehicles.length;
-  const availableVehicles = vehicles.filter(vehicle => vehicle.status === 'available').length;
-  // Updated dashboard stats to use new assignment status
-  const activeAssignments = assignments.filter(assignment => 
+  // Calculate stats based on filtered data
+  const activeDrivers = filteredDrivers.filter(driver => driver.status === 'active').length;
+  const totalVehicles = filteredVehicles.length;
+  const availableVehicles = filteredVehicles.filter(vehicle => vehicle.status === 'available').length;
+  const activeAssignments = filteredAssignments.filter(assignment => 
     assignment.status === 'assigned' || assignment.status === 'accepted'
   ).length;
   
@@ -87,6 +115,7 @@ const DashboardScreen = ({ navigation }) => {
     <View style={styles.container}>
       <AppHeader 
         title="Driver Management Dashboard" 
+        showCategoryFilter={true}
       />
       
       <ScrollView style={styles.content}>
@@ -119,14 +148,14 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           
-          {assignments.length === 0 ? (
+          {filteredAssignments.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="clipboard-outline" size={48} color={Colors.textSecondary} />
               <Text style={styles.emptyText}>No assignments yet</Text>
               <Text style={styles.emptySubtext}>Tap "Add Assignment" to create your first assignment</Text>
             </View>
           ) : (
-            assignments.slice(0, 3).map((assignment) => (
+            filteredAssignments.slice(0, 3).map((assignment) => (
               <View key={assignment.id} style={styles.assignmentCard}>
                 <View style={styles.cardRow}>
                   {/* Driver Info */}
@@ -158,6 +187,14 @@ const DashboardScreen = ({ navigation }) => {
                     <Text style={styles.detailLabel}>Route</Text>
                     <Text style={styles.detailValue}>
                       {assignment.route_id ? getRouteInfo(assignment.route_id) : 'No Route'}
+                    </Text>
+                  </View>
+                  
+                  {/* Category Info - NEW */}
+                  <View style={styles.columnSecondary}>
+                    <Text style={styles.detailLabel}>Category</Text>
+                    <Text style={styles.detailValue}>
+                      {getCategoryInfo(assignment.id)}
                     </Text>
                   </View>
                   

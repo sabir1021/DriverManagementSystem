@@ -185,13 +185,21 @@ const AssignmentForm = ({ assignment, onClose }) => {
                 );
                 
                 return !isAlreadyAssigned;
-              }).map((route) => (
-                <Picker.Item 
-                  key={route.id} 
-                  label={route.route_name} 
-                  value={route.id} 
-                />
-              ))}
+              }).map((route) => {
+                // Get category name for this route
+                const category = route.category_id 
+                  ? categories.find(cat => cat.id === route.category_id)
+                  : null;
+                const categoryName = category ? category.name : 'No Category';
+                
+                return (
+                  <Picker.Item 
+                    key={route.id} 
+                    label={`${route.route_name} (${categoryName})`} 
+                    value={route.id} 
+                  />
+                );
+              })}
             </Picker>
           </View>
           {/* Show inherited category */}

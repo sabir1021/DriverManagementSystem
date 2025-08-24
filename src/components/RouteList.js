@@ -6,7 +6,7 @@ import Button from './Button';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 
-const RouteCard = ({ route, onEdit, onDelete }) => {
+const RouteCard = ({ route, onEdit, onDelete, categories }) => {
   const handleDelete = () => {
     console.log('Delete button pressed for route:', route.id);
     
@@ -42,6 +42,13 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
     }
   };
 
+  // Helper function to get category info
+  const getCategoryInfo = () => {
+    if (!route.category_id || !categories) return 'No Category';
+    const category = categories.find(cat => cat.id === route.category_id);
+    return category ? category.name : 'Unknown Category';
+  };
+
   const routePeriod = getRoutePeriod();
 
   return (
@@ -62,6 +69,14 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
           </Text>
         </View>
         
+        {/* Category */}
+        <View style={styles.columnSecondary}>
+          <Text style={styles.detailLabel}>Category</Text>
+          <Text style={styles.detailValue}>
+            {getCategoryInfo()}
+          </Text>
+        </View>
+        
         {/* Check-in Time */}
         <View style={styles.columnSecondary}>
           <Text style={styles.detailLabel}>Check-in Time</Text>
@@ -77,8 +92,6 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
             {formatStops(route.stops)}
           </Text>
         </View>
-        
-        {/* Remove entire Status column */}
         
         {/* Actions */}
         <View style={styles.columnActions}>
@@ -104,7 +117,7 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
 };
 
 const RouteList = ({ onAddRoute, onEditRoute }) => {
-  const { routes, deleteRoute, getFilteredRoutes } = useApp();
+  const { routes, deleteRoute, getFilteredRoutes, categories } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   
   // Use filtered routes from context instead of all routes
@@ -120,13 +133,18 @@ const RouteList = ({ onAddRoute, onEditRoute }) => {
     const routeType = route.route_type || '';
     const notes = route.notes || '';
     
-    // Search in route name, school name, check-in time, route type, notes, and stops
+    // Get category name for search
+    const category = categories?.find(cat => cat.id === route.category_id);
+    const categoryName = category ? category.name : '';
+    
+    // Search in route name, school name, check-in time, route type, notes, category, and stops
     return (
       routeName.toLowerCase().includes(query) ||
       schoolName.toLowerCase().includes(query) ||
       checkInTime.toLowerCase().includes(query) ||
       routeType.toLowerCase().includes(query) ||
       notes.toLowerCase().includes(query) ||
+      categoryName.toLowerCase().includes(query) ||
       (route.stops && Array.isArray(route.stops) && 
        route.stops.some(stop => stop && stop.toLowerCase().includes(query)))
     );
@@ -175,6 +193,7 @@ const RouteList = ({ onAddRoute, onEditRoute }) => {
             route={item}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            categories={categories}
           />
         )}
         contentContainerStyle={styles.listContainer}

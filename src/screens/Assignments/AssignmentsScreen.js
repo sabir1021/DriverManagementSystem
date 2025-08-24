@@ -9,7 +9,7 @@ import AssignmentForm from '../../components/AssignmentForm';
 import Button from '../../components/Button';
 
 const AssignmentsScreen = () => {
-  const { assignments, drivers, vehicles, routes, deleteAssignment, getFilteredAssignments } = useApp();
+  const { assignments, drivers, vehicles, routes, categories, deleteAssignment, getFilteredAssignments } = useApp(); // Add categories
   const [showForm, setShowForm] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +96,18 @@ const AssignmentsScreen = () => {
   const getRouteInfo = (routeId) => {
     const route = routes.find(r => r.id === routeId);
     return route ? route.route_name : 'No Route';
+  };
+
+  // Add helper function to get category name for assignment
+  const getCategoryInfo = (assignmentId) => {
+    const assignment = assignments.find(a => a.id === assignmentId);
+    if (!assignment || !assignment.route_id) return 'No Category';
+    
+    const route = routes.find(r => r.id === assignment.route_id);
+    if (!route || !route.category_id) return 'No Category';
+    
+    const category = categories.find(c => c.id === route.category_id);
+    return category ? category.name : 'No Category';
   };
 
   // Use filtered assignments from context instead of all assignments
@@ -197,11 +209,11 @@ const AssignmentsScreen = () => {
                   </Text>
                 </View>
                 
-                {/* Date Range */}
+                {/* Category Info - CHANGED FROM DURATION */}
                 <View style={styles.columnSecondary}>
-                  <Text style={styles.detailLabel}>Duration</Text>
+                  <Text style={styles.detailLabel}>Category</Text>
                   <Text style={styles.detailValue}>
-                    {assignment.start_date} - {assignment.end_date || 'Ongoing'}
+                    {getCategoryInfo(assignment.id)}
                   </Text>
                 </View>
                 
@@ -412,6 +424,15 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: Spacing.sm,
+  },
+  vehicleIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  vehicleNumber: {
+    ...Typography.body,
+    fontWeight: '500',
   },
 });
 
