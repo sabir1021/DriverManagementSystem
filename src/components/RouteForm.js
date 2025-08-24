@@ -7,28 +7,59 @@ import { Colors, Spacing, Typography } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 
 const RouteForm = ({ route = null, onClose }) => {
-  const { addRoute, updateRoute } = useApp();
-  const isEditing = !!route;
-  
+  const { addRoute, updateRoute, categories } = useApp();
   const [formData, setFormData] = useState({
     routeName: route?.route_name || '',
-    startLocation: route?.start_location || '',
-    endLocation: route?.end_location || '',
-    stops: route?.stops ? route.stops.join(', ') : '',
+    categoryId: route?.category_id || '',
+    amCheckInTime: route?.route_type === 'AM' ? route?.check_in_time || '' : '',
+    pmCheckInTime: route?.route_type === 'PM' ? route?.check_in_time || '' : '',
+    stops: route?.stops ? (Array.isArray(route.stops) ? route.stops.join(', ') : route.stops) : '',
     distance: route?.distance || '',
     estimatedTime: route?.estimated_time || '',
-    status: route?.status || 'active',
+    schoolName: route?.school_name || '',
     notes: route?.notes || '',
   });
   
   const [errors, setErrors] = useState({});
   
-  const statusOptions = [
-    { label: 'Active', value: 'active' },
-    { label: 'Inactive', value: 'inactive' },
-    { label: 'Maintenance', value: 'maintenance' },
-  ];
+  // Add utility functions
+  const processStops = (stopsString) => {
+    if (!stopsString || !stopsString.trim()) {
+      return [];
+    }
+    return stopsString.split(',').map(stop => stop.trim()).filter(stop => stop.length > 0);
+  };
   
+  const processNumericField = (value) => {
+    if (!value || !value.toString().trim()) {
+      return null;
+    }
+    const numericValue = parseFloat(value.toString().trim());
+    return isNaN(numericValue) ? null : numericValue;
+  };
+
+  // Generate time options with 15-minute increments
+  const generateTimeOptions = () => {
+    const times = [{ label: 'Select time or enter manually', value: '' }];
+    
+    for (let hour = 1; hour <= 12; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const timeString = `${hour}:${minute.toString().padStart(2, '0')}`;
+        times.push({
+          label: `${timeString} AM`,
+          value: `${timeString} AM`
+        });
+        times.push({
+          label: `${timeString} PM`,
+          value: `${timeString} PM`
+        });
+      }
+    }
+    return times;
+  };
+
+  const timeOptions = generateTimeOptions();
+
   const validateForm = () => {
     const newErrors = {};
     
@@ -36,126 +67,211 @@ const RouteForm = ({ route = null, onClose }) => {
       newErrors.routeName = 'Route name is required';
     }
     
-    if (!formData.startLocation.trim()) {
-      newErrors.startLocation = 'Start location is required';
+    if (!formData.categoryId) {
+      newErrors.categoryId = 'Category is required';
     }
     
-    if (!formData.endLocation.trim()) {
-      newErrors.endLocation = 'End location is required';
-    }
-    
-    if (formData.distance && (isNaN(formData.distance) || parseFloat(formData.distance) <= 0)) {
-      newErrors.distance = 'Please enter a valid distance';
-    }
-    
-    if (formData.estimatedTime && (isNaN(formData.estimatedTime) || parseInt(formData.estimatedTime) <= 0)) {
-      newErrors.estimatedTime = 'Please enter a valid time in minutes';
+    // When editing an existing route, only validate the relevant time field
+    if (route) {
+      // Editing mode - only validate the time field for the current route type
+      if (route.route_type === 'AM' && !formData.amCheckInTime.trim()) {
+        newErrors.amCheckInTime = 'AM check-in time is required';
+      }
+      if (route.route_type === 'PM' && !formData.pmCheckInTime.trim()) {
+        newErrors.pmCheckInTime = 'PM check-in time is required';
+      }
+    } else {
+      // Creating new routes - require both times
+      if (!formData.amCheckInTime.trim()) {
+        newErrors.amCheckInTime = 'AM check-in time is required';
+      }
+      if (!formData.pmCheckInTime.trim()) {
+        newErrors.pmCheckInTime = 'PM check-in time is required';
+      }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSubmit = async () => {
-    console.log('=== ROUTE FORM DEBUG ===');
-    console.log('isEditing:', isEditing);
-    console.log('route prop:', route);
-    console.log('formData:', formData);
-    
-    if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors before submitting.');
-      return;
-    }
-    
-    // Convert stops string to array
-    const stopsArray = formData.stops
-      .split(',')
-      .map(stop => stop.trim())
-      .filter(stop => stop.length > 0);
-    
-    // Prepare data for Supabase
-    const routeData = {
-      route_name: formData.routeName?.trim() || '',
-      start_location: formData.startLocation?.trim() || '',
-      end_location: formData.endLocation?.trim() || '',
-      stops: stopsArray.length > 0 ? stopsArray : null,
-      distance: formData.distance ? parseFloat(formData.distance) : null,
-      estimated_time: formData.estimatedTime ? parseInt(formData.estimatedTime) : null,
-      status: formData.status || 'active',
-      notes: formData.notes?.trim() || null,
-    };
-    
-    // Add id and timestamps only for editing
-    if (isEditing) {
-      routeData.id = route?.id;
-      routeData.updated_at = new Date().toISOString();
-    }
-    
-    console.log('Route data to submit:', routeData);
+    if (!validateForm()) return;
     
     try {
-      if (isEditing) {
-        console.log('Calling updateRoute with:', routeData);
-        const result = await updateRoute(routeData);
-        console.log('updateRoute result:', result);
+      setErrors({});
+      
+      if (route) {
+        // Add debugging and safety check
+        console.log('Route object received:', route);
+        console.log('Route ID:', route.id);
+        
+        if (!route.id) {
+          Alert.alert('Error', 'Cannot update route: Route ID is missing');
+          return;
+        }
+        
+        const routeData = {
+          route_name: formData.routeName,
+          category_id: formData.categoryId,
+          check_in_time: route.route_type === 'AM' ? formData.amCheckInTime : formData.pmCheckInTime,
+          stops: processStops(formData.stops),
+          distance: processNumericField(formData.distance),
+          estimated_time: processNumericField(formData.estimatedTime),
+          school_name: formData.schoolName,
+          notes: formData.notes,
+        };
+        
+        console.log('Route data being sent:', routeData);
+        await updateRoute(route.id, routeData);
         Alert.alert('Success', 'Route updated successfully!');
       } else {
-        console.log('Calling addRoute with:', routeData);
-        const result = await addRoute(routeData);
-        console.log('addRoute result:', result);
-        Alert.alert('Success', 'Route added successfully!');
+        // Create new routes (AM and PM)
+        const baseRouteData = {
+          route_name: formData.routeName,
+          category_id: formData.categoryId,
+          stops: processStops(formData.stops),
+          distance: processNumericField(formData.distance),
+          estimated_time: processNumericField(formData.estimatedTime),
+          school_name: formData.schoolName,
+          notes: formData.notes,
+        };
+        
+        // Create AM route
+        const amRouteData = {
+          ...baseRouteData,
+          route_type: 'AM',
+          check_in_time: formData.amCheckInTime,
+        };
+        
+        // Create PM route
+        const pmRouteData = {
+          ...baseRouteData,
+          route_type: 'PM',
+          check_in_time: formData.pmCheckInTime,
+        };
+        
+        await addRoute(amRouteData);
+        await addRoute(pmRouteData);
+        Alert.alert('Success', 'Routes created successfully!');
       }
+      
       onClose();
     } catch (error) {
       console.error('Error saving route:', error);
-      console.error('Error details:', error.message, error.stack);
-      Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'add'} route. Please try again.\n\nError: ${error.message}`);
+      Alert.alert('Error', `Failed to save route. Please try again.\n\nError: ${error.message}`);
     }
   };
-  
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
   };
-  
+
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>
-          {isEditing ? 'Edit Route' : 'Add New Route'}
+          {route ? 'Edit Route' : 'Add New Route'}
         </Text>
       </View>
       
-      <View style={styles.form}>
+      <ScrollView style={styles.form}>
         <Input
-          label="Route Name *"
+          label="Route Number *"
           value={formData.routeName}
           onChangeText={(value) => updateField('routeName', value)}
-          placeholder="e.g., Downtown to Airport"
+          placeholder="e.g., 101"
           error={errors.routeName}
         />
         
-        <View style={styles.row}>
-          <Input
-            label="Start Location *"
-            value={formData.startLocation}
-            onChangeText={(value) => updateField('startLocation', value)}
-            placeholder="e.g., Downtown Terminal"
-            error={errors.startLocation}
-            style={styles.halfInput}
-          />
-          <Input
-            label="End Location *"
-            value={formData.endLocation}
-            onChangeText={(value) => updateField('endLocation', value)}
-            placeholder="e.g., Airport Terminal"
-            error={errors.endLocation}
-            style={styles.halfInput}
-          />
+        {/* Add Category Picker */}
+        <View style={styles.pickerContainer}>
+          <Text style={styles.pickerLabel}>Category *</Text>
+          <View style={[styles.pickerWrapper, errors.categoryId && styles.pickerError]}>
+            <Picker
+              selectedValue={formData.categoryId}
+              onValueChange={(value) => updateField('categoryId', value)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select a category" value="" />
+              {categories.map((category) => (
+                <Picker.Item
+                  key={category.id}
+                  label={category.name}
+                  value={category.id}
+                />
+              ))}
+            </Picker>
+          </View>
+          {errors.categoryId && <Text style={styles.errorText}>{errors.categoryId}</Text>}
         </View>
+        
+        <View style={styles.row}>
+          <View style={[styles.pickerContainer, styles.halfInput]}>
+            <Text style={styles.pickerLabel}>AM Check-in Time *</Text>
+            <View style={[styles.pickerWrapper, errors.amCheckInTime && styles.pickerError]}>
+              <Picker
+                selectedValue={formData.amCheckInTime}
+                onValueChange={(value) => updateField('amCheckInTime', value)}
+                style={styles.picker}
+              >
+                {timeOptions.filter(option => option.value === '' || option.value.includes('AM')).map((option) => (
+                  <Picker.Item
+                    key={option.value}
+                    label={option.label}
+                    value={option.value}
+                  />
+                ))}
+              </Picker>
+            </View>
+            {formData.amCheckInTime === '' && (
+              <Input
+                value={formData.amCheckInTime}
+                onChangeText={(value) => updateField('amCheckInTime', value)}
+                placeholder="e.g., 7:30 AM"
+                style={styles.manualInput}
+              />
+            )}
+            {errors.amCheckInTime && <Text style={styles.errorText}>{errors.amCheckInTime}</Text>}
+          </View>
+          
+          <View style={[styles.pickerContainer, styles.halfInput]}>
+            <Text style={styles.pickerLabel}>PM Check-in Time *</Text>
+            <View style={[styles.pickerWrapper, errors.pmCheckInTime && styles.pickerError]}>
+              <Picker
+                selectedValue={formData.pmCheckInTime}
+                onValueChange={(value) => updateField('pmCheckInTime', value)}
+                style={styles.picker}
+              >
+                {timeOptions.filter(option => option.value === '' || option.value.includes('PM')).map((option) => (
+                  <Picker.Item
+                    key={option.value}
+                    label={option.label}
+                    value={option.value}
+                  />
+                ))}
+              </Picker>
+            </View>
+            {formData.pmCheckInTime === '' && (
+              <Input
+                value={formData.pmCheckInTime}
+                onChangeText={(value) => updateField('pmCheckInTime', value)}
+                placeholder="e.g., 2:30 PM"
+                style={styles.manualInput}
+              />
+            )}
+            {errors.pmCheckInTime && <Text style={styles.errorText}>{errors.pmCheckInTime}</Text>}
+          </View>
+        </View>
+        
+        <Input
+          label="School Name"
+          value={formData.schoolName}
+          onChangeText={(value) => updateField('schoolName', value)}
+          placeholder="e.g., Springfield Elementary"
+        />
         
         <Input
           label="Stops (comma-separated)"
@@ -187,26 +303,13 @@ const RouteForm = ({ route = null, onClose }) => {
           />
         </View>
         
-        <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>Status *</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={formData.status}
-              onValueChange={(value) => updateField('status', value)}
-              style={styles.picker}
-            >
-              {statusOptions.map((status) => (
-                <Picker.Item key={status.value} label={status.label} value={status.value} />
-              ))}
-            </Picker>
-          </View>
-        </View>
+        {/* Removed status picker section */}
         
         <Input
           label="Notes"
           value={formData.notes}
           onChangeText={(value) => updateField('notes', value)}
-          placeholder="Additional information about this route..."
+          placeholder="Additional notes..."
           multiline
           numberOfLines={3}
         />
@@ -219,13 +322,13 @@ const RouteForm = ({ route = null, onClose }) => {
             style={styles.button}
           />
           <Button
-            title={isEditing ? 'Update Route' : 'Add Route'}
+            title={route ? 'Update Route' : 'Add Route'}
             onPress={handleSubmit}
             style={styles.button}
           />
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -268,8 +371,20 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.xs,
     backgroundColor: Colors.surface,
   },
+  pickerError: {
+    borderColor: Colors.error,
+  },
   picker: {
     height: 50,
+  },
+  manualInput: {
+    marginTop: Spacing.xs,
+    marginBottom: 0,
+  },
+  errorText: {
+    ...Typography.caption,
+    color: Colors.error,
+    marginTop: Spacing.xs,
   },
   buttonContainer: {
     flexDirection: 'row',

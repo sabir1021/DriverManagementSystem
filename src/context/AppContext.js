@@ -9,6 +9,8 @@ const initialState = {
   vehicles: [],
   routes: [],
   assignments: [],
+  categories: [],
+  selectedCategory: null, // For filtering
   loading: false,
   error: null,
 };
@@ -33,6 +35,11 @@ export const ACTION_TYPES = {
   ADD_ASSIGNMENT: 'ADD_ASSIGNMENT',
   UPDATE_ASSIGNMENT: 'UPDATE_ASSIGNMENT',
   DELETE_ASSIGNMENT: 'DELETE_ASSIGNMENT',
+  SET_CATEGORIES: 'SET_CATEGORIES',
+  ADD_CATEGORY: 'ADD_CATEGORY',
+  UPDATE_CATEGORY: 'UPDATE_CATEGORY',
+  DELETE_CATEGORY: 'DELETE_CATEGORY',
+  SET_SELECTED_CATEGORY: 'SET_SELECTED_CATEGORY',
 };
 
 // Reducer function
@@ -152,6 +159,43 @@ const appReducer = (state, action) => {
         loading: false,
       };
     
+    // Add missing category reducer cases
+    case ACTION_TYPES.SET_CATEGORIES:
+      return {
+        ...state,
+        categories: action.payload,
+        loading: false,
+      };
+    
+    case ACTION_TYPES.ADD_CATEGORY:
+      return {
+        ...state,
+        categories: [...state.categories, action.payload],
+        loading: false,
+      };
+    
+    case ACTION_TYPES.UPDATE_CATEGORY:
+      return {
+        ...state,
+        categories: state.categories.map(category => 
+          category.id === action.payload.id ? action.payload : category
+        ),
+        loading: false,
+      };
+    
+    case ACTION_TYPES.DELETE_CATEGORY:
+      return {
+        ...state,
+        categories: state.categories.filter(category => category.id !== action.payload),
+        loading: false,
+      };
+    
+    case ACTION_TYPES.SET_SELECTED_CATEGORY:
+      return {
+        ...state,
+        selectedCategory: action.payload,
+      };
+    
     default:
       return state;
   }
@@ -182,17 +226,19 @@ export const AppProvider = ({ children }) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
       
-      const [driversData, vehiclesData, routesData, assignmentsData] = await Promise.all([
+      const [driversData, vehiclesData, routesData, assignmentsData, categoriesData] = await Promise.all([
         databaseService.getDrivers(),
         databaseService.getVehicles(),
         databaseService.getRoutes(),
-        databaseService.getAssignments()
+        databaseService.getAssignments(),
+        databaseService.getCategories()
       ]);
       
       dispatch({ type: ACTION_TYPES.SET_DRIVERS, payload: driversData });
       dispatch({ type: ACTION_TYPES.SET_VEHICLES, payload: vehiclesData });
       dispatch({ type: ACTION_TYPES.SET_ROUTES, payload: routesData });
       dispatch({ type: ACTION_TYPES.SET_ASSIGNMENTS, payload: assignmentsData });
+      dispatch({ type: ACTION_TYPES.SET_CATEGORIES, payload: categoriesData });
     } catch (error) {
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
     } finally {
@@ -314,10 +360,10 @@ export const AppProvider = ({ children }) => {
         dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
       }
     },
-    updateRoute: async (route) => {
+    updateRoute: async (id, routeData) => {
       try {
         dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
-        const updatedRoute = await databaseService.updateRoute(route.id, route);
+        const updatedRoute = await databaseService.updateRoute(id, routeData);
         dispatch({ type: ACTION_TYPES.UPDATE_ROUTE, payload: updatedRoute });
       } catch (error) {
         dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
@@ -394,8 +440,98 @@ export const AppProvider = ({ children }) => {
     },
   };
 
+  // MOVE contextValue INSIDE the component - THIS IS THE FIX!
+  const contextValue = {
+    // State
+    ...state,
+    
+    // All existing actions
+    ...actions,
+    
+    // Category-specific methods
+    categories: state.categories,
+    selectedCategory: state.selectedCategory,
+    setCategories: (categories) => dispatch({ type: ACTION_TYPES.SET_CATEGORIES, payload: categories }),
+    addCategory: async (categoryData) => {
+      try {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+        const newCategory = await databaseService.addCategory(categoryData);
+        dispatch({ type: ACTION_TYPES.ADD_CATEGORY, payload: newCategory });
+        Alert.alert('Success', 'Category added successfully!');
+      } catch (error) {
+        dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+        Alert.alert('Error', `Failed to add category: ${error.message}`);
+        throw error;
+      } finally {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
+      }
+    },
+    updateCategory: async (id, categoryData) => {
+      try {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+        const updatedCategory = await databaseService.updateCategory(id, categoryData);
+        dispatch({ type: ACTION_TYPES.UPDATE_CATEGORY, payload: updatedCategory });
+      } catch (error) {
+        dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+        throw error;
+      } finally {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
+      }
+    },
+    deleteCategory: async (id) => {
+      try {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+        await databaseService.deleteCategory(id);
+        dispatch({ type: ACTION_TYPES.DELETE_CATEGORY, payload: id });
+        Alert.alert('Success', 'Category deleted successfully!');
+      } catch (error) {
+        dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+        Alert.alert('Error', `Failed to delete category: ${error.message}`);
+        throw error;
+      } finally {
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
+      }
+    },
+    setSelectedCategory: (categoryId) => {
+      dispatch({ type: ACTION_TYPES.SET_SELECTED_CATEGORY, payload: categoryId });
+    },
+    
+    // Filtered data based on selected category
+    getFilteredRoutes: () => {
+      if (!state.selectedCategory) return state.routes;
+      return state.routes.filter(route => route.category_id === state.selectedCategory);
+    },
+    
+    getFilteredAssignments: () => {
+      if (!state.selectedCategory) return state.assignments;
+      const filteredRoutes = state.routes.filter(route => route.category_id === state.selectedCategory);
+      const routeIds = filteredRoutes.map(route => route.id);
+      return state.assignments.filter(assignment => routeIds.includes(assignment.route_id));
+    },
+    
+    getFilteredDrivers: () => {
+      if (!state.selectedCategory) return state.drivers;
+      const filteredAssignments = state.assignments.filter(assignment => {
+        const route = state.routes.find(r => r.id === assignment.route_id);
+        return route && route.category_id === state.selectedCategory;
+      });
+      const driverIds = [...new Set(filteredAssignments.map(assignment => assignment.driver_id))];
+      return state.drivers.filter(driver => driverIds.includes(driver.id));
+    },
+    
+    getFilteredVehicles: () => {
+      if (!state.selectedCategory) return state.vehicles;
+      const filteredAssignments = state.assignments.filter(assignment => {
+        const route = state.routes.find(r => r.id === assignment.route_id);
+        return route && route.category_id === state.selectedCategory;
+      });
+      const vehicleIds = [...new Set(filteredAssignments.map(assignment => assignment.vehicle_id))];
+      return state.vehicles.filter(vehicle => vehicleIds.includes(vehicle.id));
+    },
+  };
+
   return (
-    <AppContext.Provider value={{ ...state, ...actions }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

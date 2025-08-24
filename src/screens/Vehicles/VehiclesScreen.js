@@ -27,7 +27,7 @@ const VehiclesScreen = () => {
   
   return (
     <View style={styles.container}>
-      <AppHeader title="Vehicles" />
+      <AppHeader title="Vehicles" showCategoryFilter={true} />
       
       <View style={styles.header}>
         <Button

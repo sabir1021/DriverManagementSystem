@@ -1,19 +1,87 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import AssignmentForm from '../../components/AssignmentForm';
 import AppHeader from '../../components/AppHeader';
 
 const DashboardScreen = ({ navigation }) => {
-  const { drivers, vehicles, assignments } = useApp();
+  const { drivers, vehicles, routes, assignments } = useApp(); // Added routes here
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  
+  // Move helper functions inside the component
+  const getDriverName = (driverId) => {
+    const driver = drivers.find(d => d.id === driverId);
+    return driver ? `${driver.first_name} ${driver.last_name}` : 'Unknown Driver';
+  };
+
+  const getVehicleInfo = (vehicleId) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return 'No Vehicle';
+    
+    const make = vehicle.make || '';
+    const model = vehicle.model || '';
+    const vehicleNumber = vehicle.vehicle_number || '';
+    
+    // Build the display string, filtering out empty parts
+    const parts = [make, model].filter(part => part.trim()).join(' ');
+    return parts ? `${parts} (${vehicleNumber})` : `Vehicle ${vehicleNumber}`;
+  };
+
+  const getRouteInfo = (routeId) => {
+    const route = routes.find(r => r.id === routeId);
+    return route ? route.route_name : 'No Route';
+  };
+
+  const getVehicleIcon = (vehicleId) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return 'car';
+    
+    switch (vehicle.type) {
+      case 'bus':
+        return 'bus';
+      case 'mini-bus':
+        return 'bus-alt';
+      case 'van':
+        return 'shipping-fast';
+      case 'type-iii':
+        return 'car';
+      case 'truck':
+        return 'truck';
+      default:
+        return 'car';
+    }
+  };
+
+  const getVehicleIconColor = (vehicleId) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return Colors.primary;
+    
+    switch (vehicle.type) {
+      case 'bus':
+        return '#FF6B35';
+      case 'mini-bus':
+        return '#F7931E';
+      case 'van':
+        return '#4A90E2';
+      case 'type-iii':
+        return '#7ED321';
+      case 'truck':
+        return '#BD10E0';
+      default:
+        return Colors.primary;
+    }
+  };
   
   const activeDrivers = drivers.filter(driver => driver.status === 'active').length;
   const totalVehicles = vehicles.length;
   const availableVehicles = vehicles.filter(vehicle => vehicle.status === 'available').length;
-  const activeAssignments = assignments.filter(assignment => assignment.status === 'active').length;
+  // Updated dashboard stats to use new assignment status
+  const activeAssignments = assignments.filter(assignment => 
+    assignment.status === 'assigned' || assignment.status === 'accepted'
+  ).length;
   
   return (
     <View style={styles.container}>
@@ -58,31 +126,58 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.emptySubtext}>Tap "Add Assignment" to create your first assignment</Text>
             </View>
           ) : (
-            assignments.slice(0, 3).map((assignment) => {
-              const driver = drivers.find(d => d.id === assignment.driver_id);
-              const vehicle = vehicles.find(v => v.id === assignment.vehicle_id);
-              const route = assignment.route ? assignment.route : null;
-              
-              return (
-                <View key={assignment.id} style={styles.activityItem}>
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityTitle}>
-                      {driver ? `${driver.first_name} ${driver.last_name}` : 'Unknown Driver'}
+            assignments.slice(0, 3).map((assignment) => (
+              <View key={assignment.id} style={styles.assignmentCard}>
+                <View style={styles.cardRow}>
+                  {/* Driver Info */}
+                  <View style={styles.columnPrimary}>
+                    <Text style={styles.driverName}>
+                      {getDriverName(assignment.driver_id)}
                     </Text>
-                    <Text style={styles.activitySubtitle}>
-                      Vehicle: {vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle'}
-                      {route && ` • Route: ${route.name}`}
-                    </Text>
-                    <Text style={styles.activitySubtitle}>
-                      {assignment.start_date} - {assignment.end_date || 'Ongoing'}
+                    <Text style={styles.assignmentRole}>Assignment</Text>
+                  </View>
+                  
+                  {/* Vehicle Info */}
+                  <View style={styles.columnSecondary}>
+                    <Text style={styles.detailLabel}>Vehicle</Text>
+                    <View style={styles.vehicleIconContainer}>
+                      <FontAwesome5 
+                        name={getVehicleIcon(assignment.vehicle_id)} 
+                        size={20} 
+                        color={getVehicleIconColor(assignment.vehicle_id)} 
+                        solid
+                      />
+                      <Text style={styles.vehicleNumber}>
+                        {vehicles.find(v => v.id === assignment.vehicle_id)?.vehicle_number || 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Route Info */}
+                  <View style={styles.columnSecondary}>
+                    <Text style={styles.detailLabel}>Route</Text>
+                    <Text style={styles.detailValue}>
+                      {assignment.route_id ? getRouteInfo(assignment.route_id) : 'No Route'}
                     </Text>
                   </View>
-                  <View style={[styles.statusBadge, styles[`status${assignment.status}`]]}>
-                    <Text style={styles.statusText}>{assignment.status}</Text>
+                  
+                  {/* Status */}
+                  <View style={styles.columnStatus}>
+                    <View style={[styles.statusBadge, styles[`status${assignment.status}`]]}>
+                      <Text style={styles.statusText}>{assignment.status}</Text>
+                    </View>
                   </View>
                 </View>
-              );
-            })
+                
+                {/* Notes row (if exists) */}
+                {assignment.notes && (
+                  <View style={styles.notesRow}>
+                    <Text style={styles.notesLabel}>Notes: </Text>
+                    <Text style={styles.notesText} numberOfLines={2}>{assignment.notes}</Text>
+                  </View>
+                )}
+              </View>
+            ))
           )}
         </View>
       </ScrollView>
@@ -178,15 +273,87 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  assignmentCard: {
     backgroundColor: Colors.surface,
-    padding: Spacing.md,
     borderRadius: 8,
+    padding: Spacing.md,
     marginBottom: Spacing.sm,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  columnPrimary: {
+    flex: 2,
+    paddingRight: Spacing.sm,
+  },
+  columnSecondary: {
+    flex: 1.5,
+    paddingHorizontal: Spacing.xs,
+  },
+  columnStatus: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xs,
+  },
+  driverName: {
+    ...Typography.h3,
+    flex: 1,
+  },
+  assignmentRole: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  detailLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  detailValue: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+  },
+  statusassigned: {
+    backgroundColor: Colors.primary + '20',
+  },
+  statusaccepted: {
+    backgroundColor: Colors.success + '20',
+  },
+  statuscompleted: {
+    backgroundColor: Colors.textSecondary + '20',
+  },
+  statusText: {
+    ...Typography.caption,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  notesRow: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  notesLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  notesText: {
+    ...Typography.caption,
+    flex: 1,
   },
   activityInfo: {
     flex: 1,
@@ -199,22 +366,9 @@ const styles = StyleSheet.create({
   activitySubtitle: {
     ...Typography.caption,
   },
-  statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: 12,
-  },
-  statusactive: {
-    backgroundColor: Colors.success + '20',
-  },
-  statusinactive: {
-    backgroundColor: Colors.textSecondary + '20',
-  },
-  statusText: {
-    ...Typography.caption,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
 });
+
+// Remove the functions that are currently defined after export default DashboardScreen
+// Delete lines 333-371 (the getVehicleIcon and getVehicleIconColor functions)
 
 export default DashboardScreen;

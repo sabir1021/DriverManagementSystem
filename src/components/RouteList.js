@@ -21,14 +21,7 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return Colors.success;
-      case 'inactive': return Colors.textSecondary;
-      case 'maintenance': return Colors.error;
-      default: return Colors.textSecondary;
-    }
-  };
+  // Remove getStatusColor function entirely
 
   const formatStops = (stops) => {
     if (!stops || stops.length === 0) return 'Direct route';
@@ -36,14 +29,44 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
     return `${stops.slice(0, 2).join(', ')} +${stops.length - 2} more`;
   };
 
+  // Get route period from route_type field
+  const getRoutePeriod = () => {
+    return route.route_type || 'N/A';
+  };
+
+  const getPeriodColor = (period) => {
+    switch (period) {
+      case 'AM': return Colors.primary;
+      case 'PM': return Colors.secondary || '#FF6B35';
+      default: return Colors.textSecondary;
+    }
+  };
+
+  const routePeriod = getRoutePeriod();
+
   return (
     <View style={styles.card}>
       <View style={styles.cardRow}>
-        {/* Route Name */}
+        {/* Route Name & Period */}
         <View style={styles.columnPrimary}>
-          <Text style={styles.routeName}>{route.route_name}</Text>
+          <View style={styles.routeHeader}>
+            <Text style={styles.routeName}>{route.route_name || 'Unnamed Route'}</Text>
+            <View style={[styles.periodBadge, { backgroundColor: getPeriodColor(routePeriod) + '20' }]}>
+              <Text style={[styles.periodText, { color: getPeriodColor(routePeriod) }]}>
+                {routePeriod}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.routeLocations}>
-            {route.start_location} → {route.end_location}
+            {route.school_name || 'No school assigned'}
+          </Text>
+        </View>
+        
+        {/* Check-in Time */}
+        <View style={styles.columnSecondary}>
+          <Text style={styles.detailLabel}>Check-in Time</Text>
+          <Text style={styles.detailValue}>
+            {route.check_in_time || 'Not set'}
           </Text>
         </View>
         
@@ -55,29 +78,7 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
           </Text>
         </View>
         
-        {/* Distance & Time */}
-        <View style={styles.columnSecondary}>
-          <Text style={styles.detailLabel}>Distance</Text>
-          <Text style={styles.detailValue}>
-            {route.distance ? `${route.distance} km` : 'N/A'}
-          </Text>
-        </View>
-        
-        <View style={styles.columnSecondary}>
-          <Text style={styles.detailLabel}>Est. Time</Text>
-          <Text style={styles.detailValue}>
-            {route.estimated_time ? `${route.estimated_time} min` : 'N/A'}
-          </Text>
-        </View>
-        
-        {/* Status */}
-        <View style={styles.columnStatus}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(route.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(route.status) }]}>
-              {route.status}
-            </Text>
-          </View>
-        </View>
+        {/* Remove entire Status column */}
         
         {/* Actions */}
         <View style={styles.columnActions}>
@@ -103,16 +104,31 @@ const RouteCard = ({ route, onEdit, onDelete }) => {
 };
 
 const RouteList = ({ onAddRoute, onEditRoute }) => {
-  const { routes, deleteRoute } = useApp();
+  const { routes, deleteRoute, getFilteredRoutes } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   
-  const filteredRoutes = routes.filter(route => {
+  // Use filtered routes from context instead of all routes
+  const contextFilteredRoutes = getFilteredRoutes();
+  
+  const filteredRoutes = contextFilteredRoutes.filter(route => {
+    if (!route) return false;
+    
     const query = searchQuery.toLowerCase();
+    const routeName = route.route_name || '';
+    const schoolName = route.school_name || '';
+    const checkInTime = route.check_in_time || '';
+    const routeType = route.route_type || '';
+    const notes = route.notes || '';
+    
+    // Search in route name, school name, check-in time, route type, notes, and stops
     return (
-      route.route_name.toLowerCase().includes(query) ||
-      route.start_location.toLowerCase().includes(query) ||
-      route.end_location.toLowerCase().includes(query) ||
-      (route.stops && route.stops.some(stop => stop.toLowerCase().includes(query)))
+      routeName.toLowerCase().includes(query) ||
+      schoolName.toLowerCase().includes(query) ||
+      checkInTime.toLowerCase().includes(query) ||
+      routeType.toLowerCase().includes(query) ||
+      notes.toLowerCase().includes(query) ||
+      (route.stops && Array.isArray(route.stops) && 
+       route.stops.some(stop => stop && stop.toLowerCase().includes(query)))
     );
   });
   
@@ -125,7 +141,7 @@ const RouteList = ({ onAddRoute, onEditRoute }) => {
     deleteRoute(routeId);
   };
   
-  if (routes.length === 0) {
+  if (contextFilteredRoutes.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="map-outline" size={64} color={Colors.textSecondary} />
@@ -153,7 +169,7 @@ const RouteList = ({ onAddRoute, onEditRoute }) => {
       
       <FlatList
         data={filteredRoutes}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
         renderItem={({ item }) => (
           <RouteCard
             route={item}
@@ -208,11 +224,7 @@ const styles = StyleSheet.create({
     flex: 1.2,
     paddingHorizontal: Spacing.xs,
   },
-  columnStatus: {
-    flex: 1,
-    paddingHorizontal: Spacing.xs,
-    alignItems: 'center',
-  },
+  // Remove columnStatus entirely
   columnActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,6 +305,29 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     minWidth: 200,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  periodBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: Spacing.xs,
+  },
+  periodText: {
+    fontSize: Typography.sizes.small,
+    fontWeight: Typography.weights.bold,
+  },
+  timeContainer: {
+    gap: 2,
+  },
+  timeText: {
+    fontSize: Typography.sizes.small,
+    color: Colors.text,
+    fontWeight: Typography.weights.medium,
   },
 });
 

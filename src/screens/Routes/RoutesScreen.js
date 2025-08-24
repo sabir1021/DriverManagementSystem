@@ -27,7 +27,7 @@ const RoutesScreen = () => {
   
   return (
     <View style={styles.container}>
-      <AppHeader title="Routes" />
+      <AppHeader title="Routes" showCategoryFilter={true} />
       
       <View style={styles.header}>
         <Button

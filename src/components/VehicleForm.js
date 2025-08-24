@@ -12,8 +12,7 @@ const VehicleForm = ({ vehicle = null, onClose }) => {
   
   const [formData, setFormData] = useState({
     vehicleNumber: vehicle?.vehicle_number || '',
-    type: vehicle?.type || 'car',
-    capacity: vehicle?.capacity || '',
+    type: vehicle?.type || 'bus',
     make: vehicle?.make || '',
     model: vehicle?.model || '',
     year: vehicle?.year || '',
@@ -25,14 +24,11 @@ const VehicleForm = ({ vehicle = null, onClose }) => {
   const [errors, setErrors] = useState({});
   
   const vehicleTypes = [
-    { label: 'Car', value: 'car' },
     { label: 'Bus', value: 'bus' },
-    { label: 'Truck', value: 'truck' },
+    { label: 'Mini Bus', value: 'mini-bus' },
     { label: 'Van', value: 'van' },
-    { label: 'Motorcycle', value: 'motorcycle' },
-    { label: 'SUV', value: 'suv' },
-    { label: 'Pickup Truck', value: 'pickup' },
-    { label: 'Other', value: 'other' },
+    { label: 'Type III', value: 'type-iii' },
+    { label: 'Truck', value: 'truck' },
   ];
   
   const validateForm = () => {
@@ -44,11 +40,6 @@ const VehicleForm = ({ vehicle = null, onClose }) => {
     
     if (!formData.type?.trim()) {
       newErrors.type = 'Vehicle type is required';
-    }
-    
-    // Fix: Check if capacity exists and is a valid number, don't call trim() on numbers
-    if (!formData.capacity || isNaN(formData.capacity) || parseInt(formData.capacity) <= 0) {
-      newErrors.capacity = 'Please enter a valid capacity';
     }
     
     // Fix: Check year properly without calling trim() on numbers
@@ -75,7 +66,6 @@ const VehicleForm = ({ vehicle = null, onClose }) => {
     const vehicleData = {
       vehicle_number: formData.vehicleNumber?.trim() || '',
       type: formData.type?.trim() || '',
-      capacity: formData.capacity ? parseInt(formData.capacity) : null,
       make: formData.make?.trim() || null,
       model: formData.model?.trim() || null,
       year: formData.year ? parseInt(formData.year) : null,
@@ -185,15 +175,6 @@ const VehicleForm = ({ vehicle = null, onClose }) => {
             </View>
           </View>
         </View>
-        
-        <Input
-          label={getCapacityLabel()}
-          value={formData.capacity}
-          onChangeText={(value) => updateField('capacity', value)}
-          placeholder={getCapacityPlaceholder()}
-          keyboardType="numeric"
-          error={errors.capacity}
-        />
         
         <View style={styles.row}>
           <Input

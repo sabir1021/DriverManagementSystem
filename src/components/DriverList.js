@@ -83,10 +83,13 @@ const DriverCard = ({ driver, onEdit, onDelete }) => {
 };
 
 const DriverList = ({ onAddDriver, onEditDriver }) => {
-  const { drivers, deleteDriver } = useApp();
+  const { drivers, deleteDriver, getFilteredDrivers } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   
-  const filteredDrivers = drivers.filter(driver => {
+  // Use filtered drivers from context instead of all drivers
+  const contextFilteredDrivers = getFilteredDrivers();
+  
+  const filteredDrivers = contextFilteredDrivers.filter(driver => {
     const query = searchQuery.toLowerCase();
     return (
       driver.first_name.toLowerCase().includes(query) ||
@@ -105,7 +108,7 @@ const DriverList = ({ onAddDriver, onEditDriver }) => {
     deleteDriver(driverId);
   };
   
-  if (drivers.length === 0) {
+  if (contextFilteredDrivers.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="people-outline" size={64} color={Colors.textSecondary} />

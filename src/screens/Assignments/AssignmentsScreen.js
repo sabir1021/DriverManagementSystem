@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import AppHeader from '../../components/AppHeader';
@@ -8,7 +9,7 @@ import AssignmentForm from '../../components/AssignmentForm';
 import Button from '../../components/Button';
 
 const AssignmentsScreen = () => {
-  const { assignments, drivers, vehicles, routes, deleteAssignment } = useApp();
+  const { assignments, drivers, vehicles, routes, deleteAssignment, getFilteredAssignments } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,16 +43,66 @@ const AssignmentsScreen = () => {
 
   const getVehicleInfo = (vehicleId) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.vehicle_number})` : 'No Vehicle';
+    if (!vehicle) return 'No Vehicle';
+    
+    const make = vehicle.make || '';
+    const model = vehicle.model || '';
+    const vehicleNumber = vehicle.vehicle_number || '';
+    
+    // Build the display string, filtering out empty parts
+    const parts = [make, model].filter(part => part.trim()).join(' ');
+    return parts ? `${parts} (${vehicleNumber})` : `Vehicle ${vehicleNumber}`;
   };
 
+  const getVehicleIcon = (vehicleId) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return 'car';
+    
+    switch (vehicle.type) {
+      case 'bus':
+        return 'bus';
+      case 'mini-bus':
+        return 'bus-alt';
+      case 'van':
+        return 'shipping-fast';
+      case 'type-iii':
+        return 'car';
+      case 'truck':
+        return 'truck';
+      default:
+        return 'car';
+    }
+  };
+
+  const getVehicleIconColor = (vehicleId) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return Colors.primary;
+    
+    switch (vehicle.type) {
+      case 'bus':
+        return '#FF6B35';
+      case 'mini-bus':
+        return '#F7931E';
+      case 'van':
+        return '#4A90E2';
+      case 'type-iii':
+        return '#7ED321';
+      case 'truck':
+        return '#BD10E0';
+      default:
+        return Colors.primary;
+    }
+  };
   const getRouteInfo = (routeId) => {
     const route = routes.find(r => r.id === routeId);
-    return route ? route.name : 'No Route';
+    return route ? route.route_name : 'No Route';
   };
 
+  // Use filtered assignments from context instead of all assignments
+  const contextFilteredAssignments = getFilteredAssignments();
+  
   // Filter assignments based on search query
-  const filteredAssignments = assignments.filter(assignment => {
+  const filteredAssignments = contextFilteredAssignments.filter(assignment => {
     if (!searchQuery.trim()) return true;
     
     const driverName = getDriverName(assignment.driver_id).toLowerCase();
@@ -70,7 +121,7 @@ const AssignmentsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Assignments" />
+      <AppHeader title="Assignments" showCategoryFilter={true} />
       
       <View style={styles.header}>
         <Button
@@ -125,7 +176,17 @@ const AssignmentsScreen = () => {
                 {/* Vehicle Info */}
                 <View style={styles.columnSecondary}>
                   <Text style={styles.detailLabel}>Vehicle</Text>
-                  <Text style={styles.detailValue}>{getVehicleInfo(assignment.vehicle_id)}</Text>
+                  <View style={styles.vehicleIconContainer}>
+                    <FontAwesome5 
+                      name={getVehicleIcon(assignment.vehicle_id)} 
+                      size={20} 
+                      color={getVehicleIconColor(assignment.vehicle_id)} 
+                      solid
+                    />
+                    <Text style={styles.vehicleNumber}>
+                      {vehicles.find(v => v.id === assignment.vehicle_id)?.vehicle_number || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
                 
                 {/* Route Info */}
@@ -309,9 +370,17 @@ const styles = StyleSheet.create({
   statusinactive: {
     backgroundColor: Colors.textSecondary + '20',
   },
-  statuscompleted: {
+  // Updated status styles for new values
+  statusassigned: {
     backgroundColor: Colors.primary + '20',
   },
+  statusaccepted: {
+    backgroundColor: Colors.success + '20', 
+  },
+  statuscompleted: {
+    backgroundColor: Colors.textSecondary + '20',
+  },
+  // Removed old status styles (statusactive, statusinactive, statuscancelled)
   statuscancelled: {
     backgroundColor: Colors.error + '20',
   },

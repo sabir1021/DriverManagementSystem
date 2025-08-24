@@ -27,7 +27,7 @@ const DriversScreen = () => {
   
   return (
     <View style={styles.container}>
-      <AppHeader title="Drivers" />
+      <AppHeader title="Drivers" showCategoryFilter={true} />
       
       <View style={styles.header}>
         <Button

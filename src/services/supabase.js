@@ -177,6 +177,12 @@ export const databaseService = {
 
   async updateRoute(id, updates) {
     const user = await getCurrentUser();
+    
+    // Add debugging
+    console.log('Attempting to update route:', id);
+    console.log('Current user ID:', user.id);
+    console.log('Update data:', updates);
+    
     const { data, error } = await supabase
       .from('routes')
       .update(updates)
@@ -184,7 +190,31 @@ export const databaseService = {
       .eq('user_id', user.id)
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw error;
+    }
+    
+    console.log('Update result:', data);
+    
+    // Check if any record was updated
+    if (!data || data.length === 0) {
+      // Let's also check if the route exists at all
+      const { data: existingRoute } = await supabase
+        .from('routes')
+        .select('id, user_id')
+        .eq('id', id)
+        .single();
+      
+      if (!existingRoute) {
+        throw new Error(`Route with ID ${id} does not exist`);
+      } else if (existingRoute.user_id !== user.id) {
+        throw new Error(`Route with ID ${id} belongs to user ${existingRoute.user_id}, but current user is ${user.id}`);
+      } else {
+        throw new Error('Route not found or you do not have permission to update it');
+      }
+    }
+    
     return data[0];
   },
 
@@ -316,6 +346,79 @@ export const databaseService = {
     const user = await getCurrentUser();
     const { error } = await supabase
       .from('assignments')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    
+    if (error) throw error;
+  },
+
+  // Category operations
+  async getCategories() {
+    const user = await getCurrentUser();
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async addCategory(category) {
+    const user = await getCurrentUser();
+    const categoryWithUserId = {
+      ...category,
+      user_id: user.id
+    };
+    
+    console.log('Adding category with data:', categoryWithUserId);
+    const { data, error } = await supabase
+      .from('categories')
+      .insert(categoryWithUserId)
+      .select('*');
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('Category added successfully:', data);
+    return data[0];
+  },
+
+  async updateCategory(id, updates) {
+    const user = await getCurrentUser();
+    const { data, error } = await supabase
+      .from('categories')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*');
+    
+    if (error) throw error;
+    return data[0];
+  },
+
+  async deleteCategory(id) {
+    const user = await getCurrentUser();
+    
+    // Check if category is being used by any routes
+    const { data: routesUsingCategory, error: checkError } = await supabase
+      .from('routes')
+      .select('id')
+      .eq('category_id', id)
+      .eq('user_id', user.id);
+    
+    if (checkError) throw checkError;
+    
+    if (routesUsingCategory && routesUsingCategory.length > 0) {
+      throw new Error('Cannot delete category that is being used by routes. Please reassign or delete the routes first.');
+    }
+    
+    const { error } = await supabase
+      .from('categories')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
